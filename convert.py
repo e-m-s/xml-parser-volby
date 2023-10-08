@@ -1,79 +1,66 @@
-import pandas as pd
-import xml.etree.ElementTree as ET
-import os
+import pandas # table management
+import xml.etree.ElementTree as ET # XML parsing
+import os # find files
 
-nazevSouboru = 'vysledky_okres0722.xml'
-oddelovac = "\t"
+# Settings:
+OUTPUT_PATH = 'vystup.xlsx'
+ELEMENTS_PREFIX = '{http://www.volby.cz/ps/}'
 
-def parseFile(filename,writer):
-  # Načtení dat
-  #tree = ET.parse('https://www.volby.cz/pls/ps2021/vysledky_okres?nuts=CZ0722')
-  tree = ET.parse(filename)
+# All XML files in INPUT_DIRECTORY will be parsed
+INPUT_DIRECTORY = '.'
+
+
+# Parse XML file formatted like: 'https://www.volby.cz/pls/ps2021/vysledky_okres?nuts=CZ0722'
+def parsefile(path, writer):
+  # Load XML elements tree
+  tree = ET.parse(path)
   root = tree.getroot()
-  #data = pd.read_xml('https://www.volby.cz/pls/ps2021/vysledky_okres?nuts=CZ0722')
-  #data = pd.read_xml('vysledky_okres0722.xml')
-  #print(root)
-  #exit()
-  #cisloOkresu = "nedefinováno"
-  #cisloOkresu = root[0].get('OKRES').get('NUTS_OKRES')
-  #print("Okres: ", cisloOkresu)
 
-  # Vytvoření tabulky
-  tabulka = pd.DataFrame()
-  #print("Obec: ", data['VYSLEDKY_OKRES']['OBEC']['CIS_OBEC'])
-  #print("Hlasy: ", data['VYSLEDKY_OKRES']['OBEC']['HLASY_STRANA']['HLASY'])
-  cisloOkresu = "nenastaveno"
-  for element in root:
-    #print(element.tag, ":")
-    if element.tag.endswith('OKRES'):
-      cisloOkresu = element.get('NUTS_OKRES')
-      #print("\tČíslo okresu:", cisloOkresu)
+  # Create table
+  resulttable = pandas.DataFrame()
+  okresnumber = "nenastaveno"
+  for child in root:
+    # DEBUG: print(element.tag, ":")
+    if child.tag == ELEMENTS_PREFIX+'OBEC':
+      resulttable = parseobec(resulttable, okresnumber, child)
+    # OKRES element should be only once.
+    elif child.tag == ELEMENTS_PREFIX+'OKRES':
+      okresnumber = child.get('NUTS_OKRES')
+
+  # Print overview and export to Excel
+  print(resulttable)
+  resulttable.to_excel(writer, sheet_name="Okres"+okresnumber, index=False)
+
+def parseobec(table, okresnumber, elemobec):
+    # Read UCAST subelement (should be only one)
+    elemucast = elemobec.find(ELEMENTS_PREFIX+'UCAST')
+    if elemucast != None:
+      validvotes = elemucast.get('PLATNE_HLASY')
     else:
-      cisloObce = element.get('CIS_OBEC')
-      nazevObce = element.get('NAZ_OBEC')
-      #print("\t\tObec:", nazevObce, ":")
-      for ucastHlasy in element:
-        #print("\t\t\t", ucastHlasy.tag, ucastHlasy.attrib)
-        if ucastHlasy.tag.endswith('UCAST'):
-          #print("\t\t\t\t- jsem účast")
-          platneHlasy = ucastHlasy.get('PLATNE_HLASY')
-        elif ucastHlasy.tag.endswith('HLASY_STRANA'):
-          #print("\t\t\t\t- jsem hlasy")
-          hlasy = ucastHlasy
-          #print(
-          #    cisloOkresu, oddelovac, 
-          #    cisloObce, oddelovac, 
-          #    nazevObce, oddelovac,
-          #    hlasy.get('KSTRANA'), oddelovac,
-          #    )
-          tabulka = tabulka.append({
-              'Okres číslo': cisloOkresu,
-              'Číslo okrsku': cisloObce,
-              'Název obce': nazevObce,
-              'Strana': hlasy.get('KSTRANA'),
-              'Hlasy': hlasy.get('HLASY'),
-              'Počet platných hlasů v obci': platneHlasy,
-              'Procenta': hlasy.get('PROC_HLASU')
+      validvotes = 'neznámý'
+    # Read elections results:
+    obecnumber = elemobec.get('CIS_OBEC')
+    obecname = elemobec.get('NAZ_OBEC')
+    for elemvotes in elemobec.findall(ELEMENTS_PREFIX+'HLASY_STRANA'):
+        table = table.append({
+                'Okres číslo': okresnumber,
+                'Číslo okrsku': obecnumber,
+                'Název obce': obecname,
+                'Strana': elemvotes.get('KSTRANA'),
+                'Hlasy': elemvotes.get('HLASY'),
+                'Počet platných hlasů v obci': validvotes,
+                'Procenta': elemvotes.get('PROC_HLASU')
             }, ignore_index=True)
-
-  # Výstup
-  print(tabulka)
-  vystupniSoubor = "vystup.xlsx"
-  tabulka.to_excel(writer,sheet_name="Okres"+cisloOkresu, index=False)
-  #with open(vystupniSoubor, 'a') as file:
-  #    tabulkaAsString = tabulka.to_string(header=True, index=False)
-  #    file.write(tabulkaAsString)
+          
+    return table
 
 
-directory = '.'
- 
-# iterate over files in
-# that directory
-writer = pd.ExcelWriter('vystup.xlsx', engine='openpyxl')
-for filename in os.listdir(directory):
-    f = os.path.join(directory, filename)
-    # checking if it is a file
-    if os.path.isfile(f) and f.endswith(".xml"):
-        print("Parsing: "+f+"...")
-        parseFile(f, writer)
+# iterate over XML files in input directory
+writer = pandas.ExcelWriter('vystup.xlsx', engine='openpyxl')
+for filename in os.listdir(INPUT_DIRECTORY):
+    path = os.path.join(INPUT_DIRECTORY, filename)
+    # checking if it is a file with .XML extension
+    if os.path.isfile(path) and path.endswith(".xml"):
+        print("Parsing: "+path+"...")
+        parsefile(path, writer)
 writer.save()
