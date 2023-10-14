@@ -24,9 +24,9 @@ def parsefile(path, writer):
   # Create list to store data rows (sublists) in:
   data = []
   # Parse data and store each line to list data
-  okresnumber = "nenastaveno"
+  okresnumber = 'nenastaveno'
   for child in root:
-    # DEBUG: print(element.tag, ":")
+    # DEBUG: print(element.tag, ':')
     if child.tag == ELEMENTS_PREFIX+'OBEC':
       parseobec(data, okresnumber, child)
     # OKRES element should be only once.
@@ -44,7 +44,7 @@ def parsefile(path, writer):
 
   # Print overview and export to Excel
   filename = os.path.basename(path).split('.')[-2] # get filename without extension
-  print("Content of "+filename+" exported to sheet "+filename+":")
+  print('Content of '+filename+' exported to sheet '+filename+':')
   print(resulttable)
   resulttable.to_excel(writer, sheet_name=filename, index=False)
 
@@ -76,8 +76,8 @@ writer = pandas.ExcelWriter('vystup.xlsx', engine='openpyxl')
 for filename in os.listdir(INPUT_DIRECTORY):
     path = os.path.join(INPUT_DIRECTORY, filename)
     # checking if it is a file with .XML extension
-    if os.path.isfile(path) and path.endswith(".xml"):
-        print("Parsing: "+path+"...")
+    if os.path.isfile(path) and path.endswith('.xml'):
+        print('Parsing: '+path+'...')
         parsefile(path, writer)
 writer.close()
 
@@ -86,5 +86,5 @@ endtime = time.time()
 endprocesstime = time.process_time()
 executiontime = endtime - starttime
 processtime = endprocesstime - startprocesstime
-print("Execution time: ", executiontime, " CPU time: ", processtime)
+print('Execution time: ', executiontime, ' CPU time: ', processtime)
 
