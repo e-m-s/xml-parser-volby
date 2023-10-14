@@ -16,22 +16,34 @@ def parsefile(path, writer):
   tree = ET.parse(path)
   root = tree.getroot()
 
-  # Create table
-  resulttable = pandas.DataFrame()
+  # Create list to store data rows (sublists) in:
+  data = []
+  # Parse data and store each line to list data
   okresnumber = "nenastaveno"
   for child in root:
     # DEBUG: print(element.tag, ":")
     if child.tag == ELEMENTS_PREFIX+'OBEC':
-      resulttable = parseobec(resulttable, okresnumber, child)
+      parseobec(data, okresnumber, child)
     # OKRES element should be only once.
     elif child.tag == ELEMENTS_PREFIX+'OKRES':
       okresnumber = child.get('NUTS_OKRES')
 
-  # Print overview and export to Excel
-  print(resulttable)
-  resulttable.to_excel(writer, sheet_name="Okres"+okresnumber, index=False)
+  # Convert array to dataframe:
+  resulttable = pandas.DataFrame(
+                        data=data, 
+                        columns=[
+                              'Okres číslo', 'Číslo okrsku', 'Název obce', 
+                              'Strana', 'Hlasy','Počet platných hlasů v obci', 'Procenta'
+                              ])
 
-def parseobec(table, okresnumber, elemobec):
+
+  # Print overview and export to Excel
+  filename = os.path.basename(path).split('.')[-2] # get filename without extension
+  print("Content of "+filename+" exported to sheet "+filename+":")
+  print(resulttable)
+  resulttable.to_excel(writer, sheet_name=filename, index=False)
+
+def parseobec(data, okresnumber, elemobec):
     # Read UCAST subelement (should be only one)
     elemucast = elemobec.find(ELEMENTS_PREFIX+'UCAST')
     if elemucast != None:
@@ -42,17 +54,16 @@ def parseobec(table, okresnumber, elemobec):
     obecnumber = elemobec.get('CIS_OBEC')
     obecname = elemobec.get('NAZ_OBEC')
     for elemvotes in elemobec.findall(ELEMENTS_PREFIX+'HLASY_STRANA'):
-        table = table.append({
-                'Okres číslo': okresnumber,
-                'Číslo okrsku': obecnumber,
-                'Název obce': obecname,
-                'Strana': elemvotes.get('KSTRANA'),
-                'Hlasy': elemvotes.get('HLASY'),
-                'Počet platných hlasů v obci': validvotes,
-                'Procenta': elemvotes.get('PROC_HLASU')
-            }, ignore_index=True)
-          
-    return table
+        data.append([
+                okresnumber,
+                obecnumber,
+                obecname,
+                elemvotes.get('KSTRANA'),
+                elemvotes.get('HLASY'),
+                validvotes,
+                elemvotes.get('PROC_HLASU')
+            ])     
+    return data
 
 
 # iterate over XML files in input directory
@@ -63,4 +74,4 @@ for filename in os.listdir(INPUT_DIRECTORY):
     if os.path.isfile(path) and path.endswith(".xml"):
         print("Parsing: "+path+"...")
         parsefile(path, writer)
-writer.save()
+writer.close()
