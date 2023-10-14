@@ -1,6 +1,11 @@
 import pandas # table management
 import xml.etree.ElementTree as ET # XML parsing
 import os # find files
+import time # process time measurement (can be removed)
+
+# Measure script running time:
+starttime = time.time()
+startprocesstime = time.process_time()
 
 # Settings:
 OUTPUT_PATH = 'vystup.xlsx'
@@ -75,3 +80,11 @@ for filename in os.listdir(INPUT_DIRECTORY):
         print("Parsing: "+path+"...")
         parsefile(path, writer)
 writer.close()
+
+# End and complete time measurement:
+endtime = time.time()
+endprocesstime = time.process_time()
+executiontime = endtime - starttime
+processtime = endprocesstime - startprocesstime
+print("Execution time: ", executiontime, " CPU time: ", processtime)
+
